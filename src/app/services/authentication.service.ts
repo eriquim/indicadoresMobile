@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { Platform } from '@ionic/angular';
 import { Storage } from '@ionic/storage';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { catchError } from 'rxjs/operators';
 
 
 const TOKEN_KEY = 'auth-token';
@@ -20,7 +21,7 @@ export class AuthenticationService {
     loginData = { username: 'admin', password: 'admin' };
 
 
-    constructor(private storage: Storage, private plt: Platform, public http: HttpClient) {
+    constructor(private storage: Storage, private plt: Platform, public httpClient: HttpClient, public http: Http) {
         this.plt.ready().then(() => {
             this.checkToken();
         });
@@ -34,36 +35,42 @@ export class AuthenticationService {
         });
     }
 
-    login() {
+    login2() {
         const postData = {
             'username': 'admin',
             'password': 'admin'
         };
-        let httpHeaders = new HttpHeaders();
-        httpHeaders = httpHeaders.set('Content-Type', 'application/json; charset=utf-8');
-        this.http.post<any[]>(apiUrl + 'security_check', postData)
-            .subscribe(data => {
-                console.log(data['_body']);
-            }, error => {
-                console.log(error);
-            });
+        console.log('executando login');
+        const httpOptions = {
+            headers: new HttpHeaders({
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + btoa(this.loginData.username + ':' + this.loginData.password)
+            })
+        };
+        console.log(apiUrl + 'security_check');
+        const p = { params: new HttpParams().set('username', 'admin'), params2: new HttpParams().set('password', 'admin') };
+        this.httpClient.post<any>(apiUrl + 'security_check', p,
+            httpOptions).pipe(catchError(this.handleError('login', postData))
+            );
     }
-   login2(callback) {
+
+    login() {
         console.log('Entrou no login...');
         const headers = new HttpHeaders(this.loginData ? {
-            authorization: 'Basic ' + btoa(this.loginData.username + ':' + this.loginData.password)
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic ' + btoa(this.loginData.username + ':' + this.loginData.password)
         } : {});
 
-        this.http.post(apiUrl + 'security_check', { headers: headers }).subscribe(response => {
+        this.httpClient.post(apiUrl + 'security_check', { headers: headers }).subscribe(response => {
             if (response['name']) {
                 this.loginS();
                 console.log('Deu certo');
                 console.log('response:' + response);
             } else {
             }
-            return callback && callback();
         });
     }
+
 
 // TODO Reescrever para login spring
 loginS() {
