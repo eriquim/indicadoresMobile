@@ -1,9 +1,22 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>login</ion-title>
-  </ion-toolbar>
-</ion-header>
-
 <ion-content padding>
-  <ion-button (click)="login()" expand="block">Login</ion-button>
+  <form [formGroup]="loginForm" (ngSubmit)="login()">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Indicadores Login</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label position="floating">Usuario: </ion-label>
+          <ion-input type="text" formControlName="username"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="floating">Senha: </ion-label>
+          <ion-input type="password" formControlName="password"></ion-input>
+        </ion-item>
+        <ion-item lines="none" padding-top>
+          <ion-button expand="full" size="default" shape="round" color="success" type="submit">Login</ion-button>
+        </ion-item>
+       </ion-card-content>
+    </ion-card>
+  </form>
 </ion-content>

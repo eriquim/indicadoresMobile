@@ -1,15 +1,16 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
-import { Platform } from '@ionic/angular';
+import { Platform, ToastController} from '@ionic/angular';
 import { Storage } from '@ionic/storage';
-import { HttpClient, HttpHeaders, HttpParams, } from '@angular/common/http';
-import { catchError } from 'rxjs/operators';
-import { tap } from 'rxjs/operators';
+import { HttpClient, HttpHeaders, HttpResponse} from '@angular/common/http';
+import { User } from '../models/User';
 
 
-const TOKEN_KEY = 'auth-token';
+export const TOKEN_KEY = 'auth-token';
+export const CURRENT_USER = 'current_user';
 
-const apiUrl = 'http://localhost:8080/tjrn-default/security_check_external';
+const apiUrl = 'http://localhost:8080/tjrn-default/api/home';
+const apiUrlLogout = 'http://localhost:8080/tjrn-default/api/logout';
 
 @Injectable({
     providedIn: 'root'
@@ -19,14 +20,17 @@ export class AuthenticationService {
     authenticationState = new BehaviorSubject(false);
 
 
-    loginData = { username: 'admin', password: 'admin' };
+    user = new User();
 
 
-    constructor(private storage: Storage, private plt: Platform, public httpClient: HttpClient) {
+
+    constructor(private storage: Storage,
+                private plt: Platform,
+                private toastCtrl: ToastController,
+                public httpClient: HttpClient) {
         this.plt.ready().then(() => {
             this.checkToken();
         });
-        this.ping();
     }
 
     checkToken() {
@@ -37,90 +41,34 @@ export class AuthenticationService {
         });
     }
 
-    login2() {
-        const postData = {
-            'username': 'admin',
-            'password': 'admin'
-        };
-        console.log('executando login');
-        const httpOptions = {
-            headers: new HttpHeaders({
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': 'Basic ' + btoa(this.loginData.username + ':' + this.loginData.password)
-            })
-        };
-        console.log(apiUrl + 'security_check');
-        const p = { params: new HttpParams().set('username', 'admin'), params2: new HttpParams().set('password', 'admin') };
-        this.httpClient.post<any>(apiUrl + 'security_check', p,
-            httpOptions).pipe(catchError(this.handleError('login', postData))
-            );
-    }
-
-    login4() {
-        console.log('Entrou no login...');
-        const headers = new HttpHeaders(this.loginData ? {
-            'Content-Type': 'application/json',
-            'Authorization': 'Basic ' + btoa(this.loginData.username + ':' + this.loginData.password)
-        } : {});
-
-        this.httpClient.post(apiUrl + 'security_check', { headers: headers }).subscribe(response => {
-            if (response['name']) {
-                this.loginS();
-                console.log('Deu certo');
-                console.log('response:' + response);
-            } else {
-            }
-        });
-    }
-
-    loginCors() {
-        console.log('Entrou no login...');
-         const headers = new HttpHeaders(this.loginData ? {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT',
-            'Accept': 'application/json',
-            'content-Type': 'application/json',
-
-        } : {});
-        return this.httpClient.post(apiUrl,
-            { username: 'admin', password: 'admin' },
-             { headers: headers }
-        ).subscribe(
-            tap(token => {
-                this.storage.set(TOKEN_KEY, token)
-                    .then(
-                        () => {
-                            console.log('Token Guardado');
-                             this.authenticationState.next(true);
-                        },
-                        error => console.error('Erro token', error)
-                    );
-                return token;
-            }),
-        );
-    }
-
-    login() {
-        console.log('Entrou no login...');
-        const credentials = {username: 'admin', password: 'admin'};
+    login(credentials) {
+        console.log('Entrou no login certo: ' + JSON.stringify(credentials));
 
         const headers = new HttpHeaders(credentials ? {
-            'Origin': 'ionic',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json charset=utf-8',
-            'Authorization': 'Basic ' + btoa(this.loginData.username + ':' + this.loginData.password)
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic ' + btoa(credentials.username + ':' + credentials.password)
         } : {});
-
-        console.log('Usuario: ' + btoa(this.loginData.username + ':' + this.loginData.password));
-        this.httpClient.post(apiUrl,  {headers: headers}).subscribe(response => {
-            if (response['name']) {
-                console.log(response);
-               this.loginS();
+        this.httpClient.post(apiUrl,
+                                    JSON.stringify(credentials),
+                                    { headers: headers,
+                                     // observe: {'request','response'},
+                                      responseType: 'text' as 'json'})
+        .subscribe(
+          (response: HttpResponse<any>) => {
+            console.log('Login efetuado com sucesso: ' + response);
+            const user = JSON.parse(response.body);
+            this.gravarToken(credentials, user);
+            this.presentToast('Login efetuado com sucesso: ');
+        }, (responseError: HttpResponse<any>) => {
+            if (responseError.status === 401) {
+                console.log('Senha ou usuario invalido');
+                this.presentToast('Senha ou usuario invalido');
             } else {
-                console.error('Erro no app: ' + response);
-                this.logout();
+                console.log('Erro de conexao');
+                this.presentToast('Nao foi possivel conectar ao servidor.');
             }
-        }, catchError(this.handleError('login', Response)));
+            this.handleError('login', responseError);
+        } );
     }
 
     public ping() {
@@ -132,15 +80,30 @@ export class AuthenticationService {
     }
 
 
-    // TODO Reescrever para login spring
-    loginS() {
-        return this.storage.set(TOKEN_KEY, 'Bearer 1234567').then(() => {
+    gravarToken(credentials, user) {
+        this.user.login = user.login;
+        this.user.nome = user.displayName;
+        this.user.email = user.email;
+        return this.storage.
+                set(TOKEN_KEY, btoa(credentials.username + ':' + credentials.password)).
+                then(() => {
+            this.storage.set(CURRENT_USER, this.user);
             this.authenticationState.next(true);
         });
     }
 
     logout() {
+        this.httpClient.get(apiUrlLogout)
+            .subscribe(
+                res => {
+                    console.log('logout efetuado com sucesso' + res );
+            },
+                error => {
+                    console.log('erro ao efetuar o login' + error);
+                    this.handleError('logout', error);
+            });
         return this.storage.remove(TOKEN_KEY).then(() => {
+             this.storage.remove(CURRENT_USER);
             this.authenticationState.next(false);
         });
     }
@@ -163,6 +126,17 @@ export class AuthenticationService {
     private log(message: string) {
         console.log(message);
     }
+
+
+
+    async presentToast(msg: string) {
+        const toast = await this.toastCtrl.create({
+            message: msg,
+            duration: 2000
+        });
+        toast.present();
+    }
+
 
 
 }

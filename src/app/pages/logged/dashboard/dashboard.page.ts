@@ -1,5 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { AuthenticationService } from '../../../services/authentication.service';
+import { User } from '../../../models/User';
+import { Storage } from '@ionic/storage';
+import {CURRENT_USER} from '../../../services/authentication.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -8,9 +11,15 @@ import { AuthenticationService } from '../../../services/authentication.service'
 })
 export class DashboardPage implements OnInit {
 
-   constructor(private authService: AuthenticationService) { }
+    user: User;
+
+   constructor(private authService: AuthenticationService,
+            private storage: Storage) { }
 
   ngOnInit() {
+    this.storage.get(CURRENT_USER).then( (userStorage: User) => {
+        this.user = userStorage;
+    });
   }
 
   logout() {

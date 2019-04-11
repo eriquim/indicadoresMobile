@@ -11,6 +11,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { IonicStorageModule } from '@ionic/storage';
 import { HttpClientModule } from '@angular/common/http';
 import { OAuthModule } from 'angular-oauth2-oidc';
+import { ReactiveFormsModule } from '@angular/forms';
 
 
 @NgModule({
@@ -21,7 +22,8 @@ import { OAuthModule } from 'angular-oauth2-oidc';
               AppRoutingModule,
               IonicStorageModule.forRoot(),
               OAuthModule.forRoot(),
-              HttpClientModule],
+              HttpClientModule,
+              ReactiveFormsModule],
     providers: [
         StatusBar,
         SplashScreen,
