@@ -56,6 +56,7 @@ export class AuthenticationService {
             const user = JSON.parse(response);
             this.gravarToken(credentials, user);
             this.presentToast('Login efetuado com sucesso: ');
+
         }, (responseError: HttpResponse<any>) => {
             if (responseError.status === 401) {
                 console.log('Senha ou usuario invalido');
