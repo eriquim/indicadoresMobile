@@ -42,8 +42,6 @@ export class AuthenticationService {
     }
 
     login(credentials) {
-        console.log('Entrou no login certo: ' + JSON.stringify(credentials));
-
         const headers = new HttpHeaders(credentials ? {
             'Content-Type': 'application/json',
             'Authorization': 'Basic ' + btoa(credentials.username + ':' + credentials.password)
@@ -51,12 +49,11 @@ export class AuthenticationService {
         this.httpClient.post(apiUrl,
                                     JSON.stringify(credentials),
                                     { headers: headers,
-                                     // observe: {'request','response'},
                                       responseType: 'text' as 'json'})
         .subscribe(
-          (response: HttpResponse<any>) => {
+          (response: string) => {
             console.log('Login efetuado com sucesso: ' + response);
-            const user = JSON.parse(response.body);
+            const user = JSON.parse(response);
             this.gravarToken(credentials, user);
             this.presentToast('Login efetuado com sucesso: ');
         }, (responseError: HttpResponse<any>) => {
